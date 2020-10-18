@@ -33,6 +33,7 @@ app.use(express.json())
 publicRouter.get("/",(req,res)=>{
     res.send("live api!!!")
 })
+
 publicRouter.post('/apiKey', async(req, res, next)=>{
     console.log("ahmed")
     const usr = req.body.user
