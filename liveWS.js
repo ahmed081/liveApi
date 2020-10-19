@@ -21,7 +21,7 @@ const { string } = require('@hapi/joi');
 
 let channels = new Set()
 channels.add("5f8b667f92ca0e040ca71bcf|12554s")
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 3030;
 const SECRET = process.env.SECRET;
 const uri = process.env.LIVE_URI;
 const publicRouter = express.Router()
@@ -179,16 +179,16 @@ privateRouter.post("/endLive" ,async(req,res)=>{
     //remove from channels
     //update end time  
     const scheme = Joi.object({
-        id_live:Joi.string().required()
+        id_channel:Joi.string().required()
     })
-    const {id_live} = req.body
-    if(scheme.validate({id_live}).error)
+    const {id_channel} = req.body
+    if(scheme.validate({id_channel}).error)
         res.status(400).send("Bad Request!!")
-    let live = await Live.findById(id_live.split("|")[0])
+    let live = await Live.findById(id_channel.split("|")[0])
     live.end = (new Date()).getTime()
     await live.save()
-    channels.delete(id_live)
-    res.send(`steam ${id_live} stoped!!`)
+    channels.delete(id_channel)
+    res.send(`steam ${id_channel} stoped!!`)
 })
 privateRouter.get('/stream',(req,res)=>{
     //connect to db 
