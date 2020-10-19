@@ -20,7 +20,6 @@ const { string } = require('@hapi/joi');
 */
 
 let channels = new Set()
-channels.add("5f8b667f92ca0e040ca71bcf|12554s")
 const port = process.env.PORT || 3030;
 const SECRET = process.env.SECRET;
 const uri = process.env.LIVE_URI;
@@ -126,7 +125,10 @@ privateRouter.post('/startLive', async (req, res, next)=>{
     });
     
     if(Array.from(channels).length>0 && Array.from(channels).find(channel => channel.split("|")[1] === streamer_id))
+    {
         res.status(400 ).send("stream is in proccecing!!")
+        return ;
+    }
     newLive.save().then( live =>{
         const id_channels = live._id+"|"+live.streamer_id
 
