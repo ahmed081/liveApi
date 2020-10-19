@@ -124,8 +124,8 @@ privateRouter.post('/startLive', async (req, res, next)=>{
         ],
         viewers_count:0
     });
-    console.log(Array.from(channels).map(channel => channel.split("|")[1] === streamer_id))
-    if(Array.from(channels).find(channel => channel.split("|")[1] === streamer_id))
+    
+    if(Array.from(channels).length>0 && Array.from(channels).find(channel => channel.split("|")[1] === streamer_id))
         res.status(400 ).send("stream is in proccecing!!")
     newLive.save().then( live =>{
         const id_channels = live._id+"|"+live.streamer_id
