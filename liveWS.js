@@ -42,18 +42,18 @@ publicRouter.post('/apiKey', async(req, res, next)=>{
         username : Joi.string().required(),
         password : Joi.string().required()
     })
+   /*  await Live.deleteMany({})
+    Live.find({}).then(data=>{
+        console.log("data count ",data.length)
+    }) */
     if(scheme.validate({username, password}).error)
         res.status(400).send("Bad request!!!")
-    /* const api = new Api({
-        user:{
-            username:'ahmed008',
-            password:"1233456789a-e"
-        },
-    }) */
-    console.log("here",req.body)
+    
+    
     const user = await Api.findOne({"user.username":username, "user.password":password})
     if(user){
         token = jwt.sign({username:user.user.username,_id:user._id},SECRET);
+        user.token = token
         user.save().then((data)=>{
             res.json({apiKey : token});
         })
@@ -65,7 +65,6 @@ publicRouter.post('/apiKey', async(req, res, next)=>{
 //autorisation midleware
 const jwtMidleware =(async (req, res, next)=> {
     //autorisation using jwt
-    console.log("autorisations")
     let token = req.body.token || req.query.token
     if(token){
        jwt.verify(token,SECRET,async (err, verifiedJwt) => {
@@ -121,7 +120,8 @@ privateRouter.post('/startLive', async (req, res, next)=>{
                 timestamp
             }
         ],
-        viewers_count:0
+        viewers_count:0,
+        viewers:[]
     });
     
     if(Array.from(channels).length>0 && Array.from(channels).find(channel => channel.split("|")[1] === streamer_id))
@@ -220,44 +220,81 @@ privateRouter.get('/stream',(req,res)=>{
     })
 })
 
-app.ws('/:id' ,function(ws, req) {
+app.ws('/:id',async (ws, req)=> {
     
-    console.log("connected")
+    
     
     //test if channel exist 
     //if true broadcaost the data to all client in the same channel
     //add data to db
+    let token = req.query.token
+    const {id} = req.params
+    if(token){
+       jwt.verify(token,SECRET,async (err, verifiedJwt) => {
+            if(err){
+                res.status(401).send()
+            }else{
+                decodedToken = jwt.decode(token, {
+                    complete: true
+                   })
+                if (!decodedToken) {
+                    return
+                }
+                else{
+                    let _id = decodedToken.payload._id
+                    let username = decodedToken.payload.username
+                    const api = await Api.find({_id:_id,"user.username":username})
+                    if(api.length <= 0)
+                        return
+                    
+                }
+            }
+          })
+        
+        
+    }else return
+
+    if(!channels.has(id))
+        return
+    console.log("connected")
     const schema = Joi.object({
         longitude:Joi.number().required(),
         latitude:Joi.number().required()
     })
-    const {id} = req.params
-    
-        ws.route = `/${req.params.id}`;  /* <- Your path */
-        let Clients = Array.from(
-                        aWss.clients
-                    ).filter((sock)=>{
-                        return sock.route === `/${req.params.id}`
-                    }) 
-                
-        ws.on('message', async (msg)=> {
-            console.log("message")
-            let live = await Live.findById(id.split('|')[0])
-            msg = JSON.parse(msg)
-            const {longitude,latitude} = msg
+    let live  = await  Live.findOne({_id:id.split('|')[0],streamer_id:id.split('|')[1]})
+    if(live)
+    {
+        if(!live.viewers.includes(id.split('|')[1]) && live.streamer_id!==id.split('|')[1] ){
+            live.viewers = [...live.viewers,id.split('|')[1]]
+            await Live.save(live)
+        }
+    }
+    console.log(live.viewers)
+    ws.route = `/${id}`;  /* <- Your path */
+    let Clients = Array.from(
+                    aWss.clients
+                ).filter((sock)=>{
+                    return sock.route === `/${req.params.id}`
+                }) 
             
-            if(schema.validate(msg).error)
-               return ;
-            const viewers_count = Clients.length-1
-            let timestamp = (new Date()).getTime()
-            live.currentPosition = {latitude,longitude,timestamp}
-            live.path =[...live.path,{latitude,longitude,timestamp}]
-            live.viewers_count=viewers_count
-            await live.save()
-            Clients.forEach(function (client) {
-                client.send(JSON.stringify({latitude,longitude,timestamp,viewers_count}));
-            });
+    ws.on('message', async (msg)=> {
+        console.log("message")
+        let live = await Live.findById(id.split('|')[0])
+        msg = JSON.parse(msg)
+        const {longitude,latitude} = msg
+        
+        if(schema.validate(msg).error)
+            return ;
+        const viewers_count = Clients.length-1
+        let timestamp = (new Date()).getTime()
+        live.currentPosition = {latitude,longitude,timestamp}
+        live.path =[...live.path,{latitude,longitude,timestamp}]
+        live.viewers_count=viewers_count
+        await live.save()
+        Clients.forEach(function (client) {
+            client.send(JSON.stringify({latitude,longitude,timestamp,viewers_count}));
         });
+    });
     
 
     

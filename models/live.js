@@ -13,7 +13,7 @@ const liveSchema = new Schema({
     start : String,
     end:String,
     path :Array,
-    
+    viewers:Array
 
 }, {
   timestamps: true,
